@@ -211,7 +211,11 @@ glibc_dirent_to_bionic_dirent(const struct dirent *de, struct bionic_dirent *bde
 	    .d_type = de->d_type,
 	};
 	_Static_assert(sizeof(bde->d_name) >= sizeof(de->d_name), "bionic_dirent can't hold dirent's d_name");
-	memcpy(bde->d_name, de->d_name, sizeof(bde->d_name));
+	// copy only the name: musl packs entries by d_reclen, so a fixed-size copy can
+	// read past the end of its buffer (and the mapped page)
+	size_t len = strnlen(de->d_name, sizeof(bde->d_name) - 1);
+	memcpy(bde->d_name, de->d_name, len);
+	bde->d_name[len] = '\0';
 }
 
 struct bionic_dirent *
