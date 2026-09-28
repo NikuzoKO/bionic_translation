@@ -433,6 +433,57 @@ struct bionic_addrinfo {
 	struct bionic_addrinfo *ai_next;    /* next structure in linked list */
 };
 
+/* bionic's AI_* and NI_* flag values (from NetBSD) differ from glibc/musl */
+#define BIONIC_AI_PASSIVE     0x00000001
+#define BIONIC_AI_CANONNAME   0x00000002
+#define BIONIC_AI_NUMERICHOST 0x00000004
+#define BIONIC_AI_NUMERICSERV 0x00000008
+#define BIONIC_AI_ALL         0x00000100
+#define BIONIC_AI_ADDRCONFIG  0x00000400
+#define BIONIC_AI_V4MAPPED    0x00000800
+
+static int bionic_ai_flags_to_native(int bionic_flags)
+{
+	int flags = 0;
+	if (bionic_flags & BIONIC_AI_PASSIVE)
+		flags |= AI_PASSIVE;
+	if (bionic_flags & BIONIC_AI_CANONNAME)
+		flags |= AI_CANONNAME;
+	if (bionic_flags & BIONIC_AI_NUMERICHOST)
+		flags |= AI_NUMERICHOST;
+	if (bionic_flags & BIONIC_AI_NUMERICSERV)
+		flags |= AI_NUMERICSERV;
+	if (bionic_flags & BIONIC_AI_ALL)
+		flags |= AI_ALL;
+	if (bionic_flags & BIONIC_AI_ADDRCONFIG)
+		flags |= AI_ADDRCONFIG;
+	if (bionic_flags & BIONIC_AI_V4MAPPED)
+		flags |= AI_V4MAPPED;
+	return flags;
+}
+
+#define BIONIC_NI_NOFQDN       0x00000001
+#define BIONIC_NI_NUMERICHOST  0x00000002
+#define BIONIC_NI_NAMEREQD     0x00000004
+#define BIONIC_NI_NUMERICSERV  0x00000008
+#define BIONIC_NI_DGRAM        0x00000010
+
+int bionic_getnameinfo(const struct sockaddr *sa, socklen_t salen, char *host, socklen_t hostlen, char *serv, socklen_t servlen, int bionic_flags)
+{
+	int flags = 0;
+	if (bionic_flags & BIONIC_NI_NOFQDN)
+		flags |= NI_NOFQDN;
+	if (bionic_flags & BIONIC_NI_NUMERICHOST)
+		flags |= NI_NUMERICHOST;
+	if (bionic_flags & BIONIC_NI_NAMEREQD)
+		flags |= NI_NAMEREQD;
+	if (bionic_flags & BIONIC_NI_NUMERICSERV)
+		flags |= NI_NUMERICSERV;
+	if (bionic_flags & BIONIC_NI_DGRAM)
+		flags |= NI_DGRAM;
+	return getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
+}
+
 int bionic_getaddrinfo(const char *hostname, const char *servname, const struct bionic_addrinfo *bionic_hints, struct bionic_addrinfo **res)
 {
 	struct addrinfo hints;
@@ -440,6 +491,7 @@ int bionic_getaddrinfo(const char *hostname, const char *servname, const struct 
 		memcpy(&hints, bionic_hints, sizeof(hints));
 		hints.ai_canonname = bionic_hints->ai_canonname;
 		hints.ai_addr = bionic_hints->ai_addr;
+		hints.ai_flags = bionic_ai_flags_to_native(bionic_hints->ai_flags);
 	}
 	int result = getaddrinfo(hostname, servname, bionic_hints ? &hints : NULL, (struct addrinfo **)res);
 
